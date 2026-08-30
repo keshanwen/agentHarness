@@ -1,6 +1,8 @@
 import os
 import subprocess
-from utils import decode_subprocess_output
+from utils import decode_subprocess_output, safe_path
+from config import TEXT_ENCODING, WORKDIR
+import glob as g
 
 
 def run_bash(command: str) -> str:
@@ -29,5 +31,67 @@ def run_bash(command: str) -> str:
         return f"错误:{str(e)}"
 
 
+def run_read(path: str, limit: int | None = None) -> str:
+    try:
+        # 使用safe_path校验并获取文件的路径，并指定编码读取内容并按行分割
+        lines = safe_path(path).read_text(encoding=TEXT_ENCODING).splitlines()
+        # 如果有行数限制，并且限制小于真实的行数
+        if limit and limit < len(lines):
+            # 截取前limit行，并在最后添加提示剩余行数的说明
+            lines = lines[:limit] + [f"...(还有{len(lines)-limit}行)"]
+        return "\n".join(lines)
+    except Exception as e:
+        return f"错误: {str(e)}"
+
+
+def run_write(path: str, content: str) -> str:
+    try:
+        # 获取文件安全路径
+        file_path = safe_path(path)
+        # 确保父目录是存在的，不存在则创建
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        # 指定的编码写入指定内容到指定文件
+        file_path.write_text(content, encoding=TEXT_ENCODING)
+        return f"已经写入{len(content)}字节到{path}中"
+    except Exception as e:
+        return f"错误: {str(e)}"
+
+
+def run_edit(path: str, old_text: str, new_text: str) -> str:
+    try:
+        # 获取文件安全路径
+        file_path = safe_path(path)
+        # 读取文件的内容
+        text = file_path.read_text()
+        if old_text not in text:
+            return f"错误：在{path}没有找到指定的文本{old_text}"
+        file_path.write_text(
+            text.replace(old_text, new_text, 1), encoding=TEXT_ENCODING
+        )
+        return f"已经编辑{path}"
+    except Exception as e:
+        return f"错误: {str(e)}"
+
+
+def run_glob(pattern: str) -> str:
+    try:
+        results = []
+        # 遍历所有的匹配到的路径，根目录为WORKDIR
+        for match in g.glob(pattern, root_dir=WORKDIR):
+            # 检查匹配到的路径是否是相对于WORKDIR的子路径
+            if (WORKDIR / match).resolve().is_relative_to(WORKDIR):
+                results.append(match)
+        return "\n".join(results) if results else "(无匹配)"
+
+    except Exception as e:
+        return f"错误:{e}"
+        
 # 定义字典，把工具的名称和真正的处理函数关联起来
-TOOL_HANDLERS = {"bash": run_bash}
+TOOL_HANDLERS = {
+    "bash": run_bash,
+    "read_file": run_read,
+    "write_file": run_write,
+    "edit_file": run_edit,
+    "glob": run_glob,
+}
+

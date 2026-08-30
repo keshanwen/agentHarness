@@ -11,3 +11,8 @@
 
 # harness engineering 驾驭工程
 指的是AI智能体设计和构建约束机制、反馈回路，工作流程控制，以及持续改进循环的系统工程实践
+
+# del /q tmp\\*
+del  windows的删除文件的命令 等同于linux rm 
+/q 静默模式 quiet  不提示确认，直接删除
+tmp/* 删除tmp目录下面的所有的文件

@@ -17,5 +17,34 @@ def _fn_tool(
 
 
 TOOLS = [
-    _fn_tool("bash", "执行一条shell命令", {"command": {"type": "string"}}, ["command"])
+    _fn_tool("bash", "执行一条shell命令", {"command": {"type": "string"}}, ["command"]),
+    _fn_tool(
+        "read_file",
+        "读取文件内容",
+        {"path": {"type": "string"}, "limit": {"type": "integer"}},
+        ["path"],
+    ),
+    _fn_tool(
+        "write_file",
+        "将内容写入文件",
+        {"path": {"type": "string"}, "content": {"type": "string"}},
+        ["path", "content"],
+    ),
+    _fn_tool(
+        "edit_file",
+        "在文件中精确替换一段文件(仅替换一次)",
+        {
+            "path": {"type": "string"},
+            "old_text": {"type": "string"},
+            "new_text": {"type": "string"},
+        },
+        ["path", "old_text", "new_text"],
+    ),
+    _fn_tool(
+        "glob",
+        "按glob模式查找文件",
+        {"pattern": {"type": "string"}},
+        ["pattern"],
+    ),
 ]
+
