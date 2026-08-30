@@ -3,7 +3,7 @@ from config import DEFAULT_MAX_TOKENS, MODEL_ID
 from prompt import get_system_prompt
 from llm import call_llm
 from utils import assistant_message_dict
-
+from tools.executor import execute_tool
 
 def agent_loop(messages: list):
     # 将最大的token数量设置为默认的值8000，未来这个值可能会变
@@ -24,3 +24,15 @@ def agent_loop(messages: list):
         # 如果助手没有工具调用，则终止循环
         if not assistant.tool_calls:
             return
+        # 如果助手要调用某些人，则循环所有的工具调用
+        for tool_call in assistant.tool_calls:
+            # 获取工具名称
+            name = tool_call.function.name
+            # 获取解析工具参数
+            args = json.loads(tool_call.function.arguments or "{}")
+            print(f"\x1b[36m {name} {json.dumps(args,ensure_ascii=False)} \x1b[0m")
+            # 执行工具，获取输出的结果
+            output = execute_tool(name, args)
+            messages.append(
+                {"role": "tool", "tool_call_id": tool_call.id, "content": output}
+            )

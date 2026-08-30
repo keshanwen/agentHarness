@@ -14,7 +14,7 @@ def main():
             # 异常时输出循环
             break
         # 如果输入的内容为空，或者用户输入了q quit exit 空串 都退出循环
-        if query.strip().lower() in ("q", "exit", ""):
+        if query.strip().lower() in ("q", "quit", "exit", ""):
             break
         # 将用户的输入添加到历史列表中
         history.append({"role": "user", "content": query})
