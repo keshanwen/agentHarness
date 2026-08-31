@@ -1,4 +1,5 @@
 from agent import agent_loop
+from hooks import trigger_user_prompt_hooks
 
 
 def main():
@@ -16,6 +17,8 @@ def main():
         # 如果输入的内容为空，或者用户输入了q quit exit 空串 都退出循环
         if query.strip().lower() in ("q", "quit", "exit", ""):
             break
+        # 触发'UserPromptSubmit'钩子，进行前置处理，返回处理后的用户输入
+        query = trigger_user_prompt_hooks(query)
         # 将用户的输入添加到历史列表中
         history.append({"role": "user", "content": query})
         # 调用代理循环处理历史消息
