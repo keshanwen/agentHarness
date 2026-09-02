@@ -16,7 +16,8 @@ def _fn_tool(
     }
 
 
-TOOLS = [
+# 子代理的工具
+BASE_TOOLS = [
     _fn_tool("bash", "执行一条shell命令", {"command": {"type": "string"}}, ["command"]),
     _fn_tool(
         "read_file",
@@ -46,6 +47,10 @@ TOOLS = [
         {"pattern": {"type": "string"}},
         ["pattern"],
     ),
+]
+# 主代理的工具
+TOOLS = [
+    *BASE_TOOLS,
     _fn_tool(
         "todo_write",  # 名称
         "创建并管理当前编码会话的任务列表。",  # 描述
@@ -71,5 +76,12 @@ TOOLS = [
         },
         ["todos"],
     ),
+    _fn_tool(
+        "spawn_subagent",
+        "启动子Agent处理复杂子任务，仅返回最终结论",
+        {
+            "description": {"type": "string"},
+        },
+        ["description"],
+    ),
 ]
-

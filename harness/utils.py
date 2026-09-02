@@ -29,3 +29,9 @@ def safe_path(p: str) -> Path:
     # 返回最终安全生成的路径对象
     return path
 
+def extract_text(content) -> str:
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    return str(content)
