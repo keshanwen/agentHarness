@@ -35,3 +35,21 @@ def extract_text(content) -> str:
     if isinstance(content, str):
         return content
     return str(content)
+
+def parse_frontmatter(text: str):
+    # 如果文本不是以---开头，则直接返回空字典和原始文件
+    if not text.startswith("---"):
+        return {}, text
+    # 用---分割文本，最多分割2次，得到3段内容
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return {}, text
+    # 创建一个空字典，用于存储frontmatter键值对
+    meta = {}
+    # frontmatter 指是SKILL.md开头的YAML元数据块，用---包裹
+    # 遍历frontmatter内容区域的每一行
+    for line in parts[1].strip().splitlines():
+        if ":" in line:
+            k, v = line.split(":", 1)
+            meta[k.strip()] = v.strip().strip('"').strip("'")
+    return meta, parts[2].strip()

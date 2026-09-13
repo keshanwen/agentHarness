@@ -3,7 +3,7 @@ import subprocess
 from utils import decode_subprocess_output, safe_path
 from config import TEXT_ENCODING, WORKDIR
 import glob as g
-
+from skills import run_load_skill
 
 def run_bash(command: str) -> str:
     # 定义一些危险的命令列表
@@ -120,5 +120,6 @@ TOOL_HANDLERS = {
     "edit_file": run_edit,
     "glob": run_glob,
     "todo_write": run_todo_write,
+    "load_skill": run_load_skill,
 }
 

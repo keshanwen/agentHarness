@@ -20,3 +20,6 @@ WORKDIR = Path.cwd()
 os.system("chcp 65001")
 # 设置读写文件时的编码为utf-8
 TEXT_ENCODING = "utf-8"
+
+# 设置技能目录为工作目录下面的skills目录
+SKILLS_DIR = WORKDIR / "skills"
