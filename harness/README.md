@@ -35,3 +35,46 @@ a和c成功了，b失败了
   - replace 容忍乱码，确保程序不中断，用�替换掉坏的字节
   - ignore 跳过坏字节，丢弃异常数据
   - backslashreplace 用\xXX转义  如果遇到解码失败显示成原始字节
+
+
+
+skill中 scripts/目录用于存放可执行脚本，可以帮助skill实现功能的复杂核心执行
+- my-skill
+  - SKILL.md 指令文件 加载到上下文中去
+  - scripts
+    - extract.py 提取pdf文档的内容
+    - process.h  shell脚本
+    - data
+      - config.json 辅助数据
+
+- 执行方式 calude 通过bash工具调用脚本，不加载源码到上下文中
+- 触发时机  skill.md文件加载后，claude会根据指令 决定什么时候执行哪个脚本，获取什么结果
+- 输入输出 通过命令行参数传递输入参数，通过stdout/stderr返回结果
+
+常用脚本类型
+python 可以处理复杂逻辑 pDF解析 文件格式转式
+shell/bash 系统操作相关的命令 配置环境变量
+node.js  前端相关脚本 可以实现打包构建 npm run build 解析AST语法
+
+
+_  - 中划线和下划线并没有固定硬性要求
+目录名 用中划线  tool-results 这是个linux惯例
+变量名 下划线  tool_result
+域名   my-site
+字段名  tool_result
+CSS类名  my-home
+
+messages = [
+ user,
+ assistant, tool_call.id
+ tool,
+ user,
+ assistant(两个tool call ids) 开始要求新的一轮工具调用，要求之前的tool call都要已经有了对应的tool
+ tool,
+ tool
+]
+
+messags = [
+  {"role":"user"},
+  {"role":"assistant","tool_calls":[{"id":"call_ids"},{}]}
+]

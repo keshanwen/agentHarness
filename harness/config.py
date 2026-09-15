@@ -23,3 +23,14 @@ TEXT_ENCODING = "utf-8"
 
 # 设置技能目录为工作目录下面的skills目录
 SKILLS_DIR = WORKDIR / "skills"
+
+# 设置工具调用结果最大字节数是10000
+MAX_BYTES = 10000
+# 设置工具消息持续长度的阈值
+PERSIST_THRESHOLD = 1000
+# 设置工具结果的落盘目录为
+TOOL_RESULTS_DIR = WORKDIR / ".task_outputs" / "tool_results"
+# 最大的消息的长度
+MAX_MESSAGES_LENGTH = 0
+# 设置保留的最近3条工具消息
+KEEP_RECENT = 3

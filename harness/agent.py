@@ -5,7 +5,7 @@ from llm import call_llm
 from utils import assistant_message_dict
 from tools.executor import execute_tool
 from hooks import trigger_hooks
-
+from history import tool_result_budget, snip_compact, micro_compact
 
 # 定义变量,用于记录上次todo_write调用以来的轮数
 rounds_since_todo = 0
@@ -20,6 +20,12 @@ def agent_loop(messages: list):
     while True:
         # 获取系统提示词
         system = get_system_prompt()
+        # L3:tool_result_budget  超大tool结果落盘
+        messages[:] = tool_result_budget(messages)
+        # L1 snip_compact 消息>50条的时候保留头3+尾47 ，中间裁掉
+        messages[:] = snip_compact(messages)
+        # L2: micro_compact — 旧工具结果占位 仅保留最近3条tool的完整内容，旧的变成占位符
+        messages[:] = micro_compact(messages)
         if rounds_since_todo >= 3 and messages:
             messages.append(
                 {
