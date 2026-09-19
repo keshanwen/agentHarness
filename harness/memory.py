@@ -29,14 +29,13 @@ def select_relevant_memories(messages, max_items=5):
                 break
     # 将最近三条用户消息再接回正确顺序的字符串
     recent = " ".join(reversed(recent_texts))[:2000]
-    print(recent)
     if not recent.strip():
         return []
     catelog = "\n".join(
         f"索引：{index} :{file['name']} - {file['description']}"
         for index, file in enumerate(files)
     )
-    print(catelog)
+
     prompt = (
         "根据近期对话和下方的记忆目录，选出明显相关的记忆索引"
         "仅返回JSON整数数组，例如[0,3]。若无相关则返回[]。\n\n"
@@ -49,21 +48,30 @@ def select_relevant_memories(messages, max_items=5):
         text = llm_text(response)
         # 用正则匹配结果
         match = re.search(r"\[.*\]", text, re.DOTALL)
-        # 如果没找到
-        if not match:
-            return
-        indices = json.loads(match.group())
-        selected = []
-        # 遍历记忆文件索引列表
-        for idx in indices:
-            # 如果是一个整数
-            if isinstance(idx, int) and 0 <= idx < len(files):
-                selected.append(files[idx]["filename"])
-                if len(selected) >= max_items:
-                    break
-        return selected
+        if match:
+            indices = json.loads(match.group())
+            selected = []
+            # 遍历记忆文件索引列表
+            for idx in indices:
+                # 如果是一个整数
+                if isinstance(idx, int) and 0 <= idx < len(files):
+                    selected.append(files[idx]["filename"])
+                    if len(selected) >= max_items:
+                        break
+            return selected
     except Exception:
         return []
+
+    # 兜底的方案，近的消息中长度大于3的单词降级检索
+    keywords = [word.lower() for word in recent.split() if len(word) > 3]
+    selected = []
+    for f in files:
+        text = (f["name"] + " " + f["description"]).lower()
+        if any(kw in text for kw in keywords):
+            selected.append(f["filename"])
+            if len(selected) > max_items:
+                break
+    return selected
 
 
 def read_memory_file(filename):
@@ -206,5 +214,52 @@ def extract_memories(messages: list):
         if count:
             print(f"\n\x1b[33m[记忆：提取了{count}条新的记忆] {','.join(names)}\x1b[0m")
 
+    except Exception:
+        pass
+
+
+# 合并记忆库，将冗余的和冲突的信息归并，并限制数量
+def consolidate_memories():
+    files = list_memory_files()
+    # 如果文件数量小于阈值的话
+    if len(files) < CONSOLIDATE_THRESHOLD:
+        return
+    # 构建所有的记忆内容的目录文本，用于合并提示
+    catelog = "\n\n".join(
+        f"## {f['filename']}\nname:{f['name']}\ndescription:{f['description']}\n{f['body']}"
+        for f in files
+    )
+    prompt = (
+        "合并以下记忆文件，规则：\n"
+        "1.重复项合并为1条\n"
+        "2.删除过时的/矛盾的记忆\n"
+        "3.总数控制在30条以内\n"
+        "4.优先保留重要的用户偏好"
+        "返回JSON数组,每项：{name,type,description,body}\n\n"
+        f"{catelog}"
+    )
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_ID, messages=[{"role": "user", "content": prompt}]
+        )
+        text = llm_text(response)
+        # 用正则匹配结果
+        match = re.search(r"\[.*\]", text, re.DOTALL)
+        if not match:
+            return
+        items = json.loads(match.group())
+        # 清空除MEMORY.md之外的所有的记忆文件 f.unlink指的是删除这个文件
+        for f in MEMORY_DIR.glob("*.md"):
+            if f.name != "MEMORY.md":
+                f.unlink()
+        # 遍历合并后的记忆文件并写入硬盘
+        for mem in items:
+            name = mem.get("name", f"memory_{int(time.time())}")
+            mem_type = mem.get("type", "user")
+            desc = mem.get("description", "")
+            body = mem.get("body", "")
+            if desc and body:
+                write_memory_file(name, mem_type, desc, body)
+        print(f"\n\x1b[33m[记忆：已经整理{len(files)}->{len(items)}条记忆] \x1b[0m")
     except Exception:
         pass

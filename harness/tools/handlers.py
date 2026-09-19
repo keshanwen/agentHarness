@@ -86,9 +86,30 @@ def run_glob(pattern: str) -> str:
     except Exception as e:
         return f"错误:{e}"
 
- 
 # 全局变量CURRENT_TODOS，用于存储当前的任务列表，类型为list[dict]
 CURRENT_TODOS: list[dict] = []
+
+
+def todo_update_reminder(rounds_since: int, threshold: int):
+    # 如果当前的轮数小于阈值或者当前 任务为空
+    if rounds_since < threshold or not CURRENT_TODOS:
+        return None
+    # 找出尚未完成的TODO
+    active = [
+        todo
+        for todo in CURRENT_TODOS
+        if todo.get("status") in ("pending", "in_progress")
+    ]
+    # 如果没有尚未完成的TODO
+    if not active:
+        return None
+    lines = [
+        f"[TODO提醒] 有未完成的任务，且连续{rounds_since}轮未调用todo_write,请更新进度",
+        "当前的任务:",
+    ]
+    for todo in CURRENT_TODOS:
+        lines.append(f"- [{todo.get('status','?')}] {todo.get('content','')}")
+    return "\n".join("lines")
 
 
 # 定义更新CURRENT_TODOS的函数，接收新的todos，返回字符串
@@ -111,7 +132,7 @@ def run_todo_write(todos: list) -> str:
     print("\n".join(lines))
     return f"已更新{len(CURRENT_TODOS)}个任务"
 
-        
+
 # 定义字典，把工具的名称和真正的处理函数关联起来
 TOOL_HANDLERS = {
     "bash": run_bash,
@@ -122,4 +143,3 @@ TOOL_HANDLERS = {
     "todo_write": run_todo_write,
     "load_skill": run_load_skill,
 }
-

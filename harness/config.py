@@ -50,3 +50,5 @@ MEMORY_DIR.mkdir(exist_ok=True)
 MEMORY_INDEX = MEMORY_DIR / "MEMORY.md"
 # 设置整理记忆的阈值是10条
 CONSOLIDATE_THRESHOLD = 10
+# 有尚未完成的todo且连续3轮未调用todowrite的话，向当前的system添加提醒
+TODO_REMINDER_ROUNDS = 3

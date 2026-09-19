@@ -1,5 +1,5 @@
 import json
-from config import DEFAULT_MAX_TOKENS, MODEL_ID, CONTEXT_LIMIT
+from config import DEFAULT_MAX_TOKENS, MODEL_ID, CONTEXT_LIMIT, TODO_REMINDER_ROUNDS
 from prompt import get_system_prompt
 from llm import call_llm, is_prompt_too_long_error
 from utils import assistant_message_dict, message_text
@@ -14,8 +14,8 @@ from history import (
     compact_history,
     reactive_compact,
 )
-from memory import load_memories, extract_memories
-
+from memory import load_memories, extract_memories, consolidate_memories
+from tools.handlers import todo_update_reminder
 
 # 定义变量,用于记录上次todo_write调用以来的轮数
 rounds_since_todo = 0
@@ -36,6 +36,12 @@ def agent_loop(messages: list):
         if memories_content:
             # 将记忆内容追加到系统提示词后面
             system += "\n\n" + memories_content
+        # 如果有活跃的TODO且N轮未更新的话，把提醒消息写入system
+        todo_remainder = todo_update_reminder(rounds_since_todo, TODO_REMINDER_ROUNDS)
+        if todo_remainder:
+            system += "\n\n" + todo_remainder
+            print(f"\x1b[33m][todo提醒] 连续{rounds_since_todo}轮未更新\x1b[0m]")
+
         # 创建一个用于提取记忆的消息内容列表
         pre_compress = [
             {"role": m.get("role", ""), "content": message_text(m)}
@@ -52,15 +58,6 @@ def agent_loop(messages: list):
         if estimate_size(messages) > CONTEXT_LIMIT:
             messages[:] = compact_history(messages)
         messages[:] = repair_message_chain(messages)
-        if rounds_since_todo >= 3 and messages:
-            messages.append(
-                {
-                    "role": "user",
-                    "content": "<reminder>请及时更新你的todo列表</reminder>",
-                }
-            )
-            print(f"\x1b[33m请更新你的todo列表\x1b[0m")
-            rounds_since_todo = 0
         try:
             # 调用大模型获取回复
             response = call_llm(system, messages, max_tokens, model)
@@ -83,6 +80,8 @@ def agent_loop(messages: list):
         if not assistant.tool_calls:
             # 提取记忆
             extract_memories(pre_compress)
+            # 合并或者说整理记忆
+            consolidate_memories()
             # 调用trigger_hooks函数，触发名为Stop的钩子，传入当前的消息列表
             force = trigger_hooks("Stop", messages)
             # 如果force有值说明活没干完，也就是hook返回了需要进一步处理的信息
@@ -95,9 +94,9 @@ def agent_loop(messages: list):
         # 如果助手要调用某些人，则循环所有的工具调用
         for tool_call in assistant.tool_calls:
             # 获取工具名称
-            name = tool_call.function.name
+            name = tool_call.function.name  # type: ignore
             # 获取解析工具参数
-            args = json.loads(tool_call.function.arguments or "{}")
+            args = json.loads(tool_call.function.arguments or "{}")  # type: ignore
             # 如果用户想调的工具是压缩工具的话
             if name == "compact":
                 messages[:] = compact_history(messages)
