@@ -53,3 +53,11 @@ def parse_frontmatter(text: str):
             k, v = line.split(":", 1)
             meta[k.strip()] = v.strip().strip('"').strip("'")
     return meta, parts[2].strip()
+
+
+def message_text(msg: dict):
+    # 提取消息字典中的内容字符
+    content = msg.get("content", "")
+    if isinstance(content, str):
+        return content
+    return str(content)

@@ -78,3 +78,13 @@ messags = [
   {"role":"user"},
   {"role":"assistant","tool_calls":[{"id":"call_ids"},{}]}
 ]
+
+# 整个messages都是提示词
+messages = [
+  #不变放前面
+  {"role":"system","content":"你是一个Agent"},
+  {"role":"user"}
+  ...
+  # 有可能变化的放在后面
+
+]

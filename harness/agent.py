@@ -2,7 +2,7 @@ import json
 from config import DEFAULT_MAX_TOKENS, MODEL_ID, CONTEXT_LIMIT
 from prompt import get_system_prompt
 from llm import call_llm, is_prompt_too_long_error
-from utils import assistant_message_dict
+from utils import assistant_message_dict, message_text
 from tools.executor import execute_tool
 from hooks import trigger_hooks
 from history import (
@@ -14,6 +14,7 @@ from history import (
     compact_history,
     reactive_compact,
 )
+from memory import load_memories, extract_memories
 
 
 # 定义变量,用于记录上次todo_write调用以来的轮数
@@ -29,6 +30,18 @@ def agent_loop(messages: list):
     while True:
         # 获取系统提示词
         system = get_system_prompt()
+        # 加载有关历史消息的记忆内容
+        memories_content = load_memories(messages)
+        # 如果记内容是存在的
+        if memories_content:
+            # 将记忆内容追加到系统提示词后面
+            system += "\n\n" + memories_content
+        # 创建一个用于提取记忆的消息内容列表
+        pre_compress = [
+            {"role": m.get("role", ""), "content": message_text(m)}
+            for m in messages
+            if isinstance(m, dict)
+        ]
         # L3:tool_result_budget  超大tool结果落盘
         messages[:] = tool_result_budget(messages)
         # L1 snip_compact 消息>50条的时候保留头3+尾47 ，中间裁掉
@@ -68,6 +81,8 @@ def agent_loop(messages: list):
         rounds_since_todo += 1
         # 如果助手没有工具调用，则终止循环
         if not assistant.tool_calls:
+            # 提取记忆
+            extract_memories(pre_compress)
             # 调用trigger_hooks函数，触发名为Stop的钩子，传入当前的消息列表
             force = trigger_hooks("Stop", messages)
             # 如果force有值说明活没干完，也就是hook返回了需要进一步处理的信息
