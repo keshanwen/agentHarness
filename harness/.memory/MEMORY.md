@@ -1,0 +1,7 @@
+- [agent-directory-config](agent-directory-config.md) - 项目目录与限制常量：skills、.task_outputs/tool_results、.transcripts、.memory 等
+- [encoding-settings](encoding-settings.md) - 项目设置 UTF-8 编码，尝试使用 chcp 65001 设置命令行代码页
+- [openai-env-config](openai-env-config.md) - 项目通过 .env 配置 OpenAI 兼容客户端，使用 MODEL_ID、OPENAI_API_KEY、OPENAI_BASE_URL
+- [project-uses-uv-pytest](project-uses-uv-pytest.md) - 项目使用 uv 管理依赖，使用 pytest 测试，包含多个 Python 模块和 skills
+- [skill-frontmatter-parsing](skill-frontmatter-parsing.md) - SKILL.md 使用 YAML frontmatter，由
+- [tab-indentation](tab-indentation.md) - 用户偏好使用 Tab 键缩进代码，而不是空格
+- [todo-list-updates](todo-list-updates.md) - 用户提醒要及时更新 todo 列表

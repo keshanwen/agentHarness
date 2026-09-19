@@ -41,3 +41,12 @@ KEEP_RECENT = 3
 CONTEXT_LIMIT = 100000
 # 设置转录目录为工作目录下面的.transcripts目录
 TRANSCRIPTS_DIR = WORKDIR / ".transcripts"
+
+# 设置记忆文件工作目录为当前工作目录下面的.memory
+MEMORY_DIR = WORKDIR / ".memory"
+# 保证此目录是存在的
+MEMORY_DIR.mkdir(exist_ok=True)
+# 设置记忆索引文件为.memory目录下面的MEMORY.md
+MEMORY_INDEX = MEMORY_DIR / "MEMORY.md"
+# 设置整理记忆的阈值是10条
+CONSOLIDATE_THRESHOLD = 10

@@ -61,3 +61,7 @@ def message_text(msg: dict):
     if isinstance(content, str):
         return content
     return str(content)
+
+# 接收大模型返回的response里的文本字符串
+def llm_text(response):
+    return (response.choices[0].message.content or "").strip()
