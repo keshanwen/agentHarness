@@ -106,3 +106,22 @@ messages = [
 在codex里，当记忆memories和自定义指令 AGENTS.md冲突的时候，以正定义指令为准
 
 AutoDream
+
+# max_tokens
+API参数，限制模型输出的最大Token数
+截断truncation  输出达到max_tokens限制时会强行切断
+首次恢复策略  增大max_tokens并重新请求，不添加任何合成续写消息
+
+方法A
+response = "这是一段被截断的"
+如果这个时候让它续写
+人工拼接 或请继续
+final = response +"..." 污染原始输出
+
+方法B 直接增加预算并重试
+首次请求max_tokens = 8000 截断
+再次请求max_tokens=64000 得到完整输出
+
+# 429 529是返回的异常码吗？
+429 Too Many Requests 请求过多 客户端错误
+520 Site is Overloaded 站点过载 服务器端错误

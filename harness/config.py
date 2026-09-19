@@ -52,3 +52,16 @@ MEMORY_INDEX = MEMORY_DIR / "MEMORY.md"
 CONSOLIDATE_THRESHOLD = 10
 # 有尚未完成的todo且连续3轮未调用todowrite的话，向当前的system添加提醒
 TODO_REMINDER_ROUNDS = 3
+
+# 设置最大的重试的次数
+MAX_RETRIES = 10
+# 定义最大的重试的次数
+MAX_RECOVERY_RETRIES = 3
+# 定义升级后的最大token数量
+ESCALATE_MAX_TOKENS = 64000
+# 从环境变量中获取备用的模型名称
+FALLBACK_MODEL_ID = os.environ["FALLBACK_MODEL_ID"]
+# 设置基础延迟时间为500毫秒
+BASE_DELAY_MS = 500
+# 定义连续发生529多少次之后就切换到备用模型
+MAX_CONSECUTIVE_529 = 3

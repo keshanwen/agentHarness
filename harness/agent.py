@@ -1,7 +1,7 @@
 import json
 from config import DEFAULT_MAX_TOKENS, MODEL_ID, CONTEXT_LIMIT, TODO_REMINDER_ROUNDS
 from prompt import get_system_prompt
-from llm import call_llm, is_prompt_too_long_error
+from llm import call_llm, is_prompt_too_long_error, RecoveryState, with_retry
 from utils import assistant_message_dict, message_text
 from tools.executor import execute_tool
 from hooks import trigger_hooks
@@ -21,6 +21,8 @@ from tools.handlers import todo_update_reminder
 rounds_since_todo = 0
 
 def agent_loop(messages: list):
+    # 创建一个记录恢复状态的实例
+    state = RecoveryState()
     # 声明这是全局变量
     global rounds_since_todo
     # 将最大的token数量设置为默认的值8000，未来这个值可能会变
@@ -60,7 +62,12 @@ def agent_loop(messages: list):
         messages[:] = repair_message_chain(messages)
         try:
             # 调用大模型获取回复
-            response = call_llm(system, messages, max_tokens, model)
+            response = with_retry(
+                lambda max_tokens=max_tokens, model=state.current_model: call_llm(
+                    system, messages, max_tokens, model
+                ),
+                state,
+            )
         except Exception as e:
             # 如果报的错误是提示词过长的导致的错误
             if is_prompt_too_long_error(e):
