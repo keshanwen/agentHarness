@@ -1,0 +1,106 @@
+40:        memories_content = load_memories(messages)
+41:        # 如果记内容是存在的
+42:        if memories_content:
+43:            # 将记忆内容追加到系统提示词后面
+44:            system += "\n\n" + memories_content
+45:        # 如果有活跃的TODO且N轮未更新的话，把提醒消息写入system
+46:        todo_remainder = todo_update_reminder(rounds_since_todo, TODO_REMINDER_ROUNDS)
+47:        if todo_remainder:
+48:            system += "\n\n" + todo_remainder
+49:            print(f"\x1b[33m][todo提醒] 连续{rounds_since_todo}轮未更新\x1b[0m]")
+50:
+51:        # 创建一个用于提取记忆的消息内容列表
+52:        pre_compress = [
+53:            {"role": m.get("role", ""), "content": message_text(m)}
+54:            for m in messages
+55:            if isinstance(m, dict)
+56:        ]
+57:        # L3:tool_result_budget  超大tool结果落盘
+58:        messages[:] = tool_result_budget(messages)
+59:        # L1 snip_compact 消息>50条的时候保留头3+尾47 ，中间裁掉
+60:        messages[:] = snip_compact(messages)
+61:        # L2: micro_compact — 旧工具结果占位 仅保留最近3条tool的完整内容，旧的变成占位符
+62:        messages[:] = micro_compact(messages)
+63:        # L4: compact_history — LLM 全量摘要
+64:        if estimate_size(messages) > CONTEXT_LIMIT:
+65:            messages[:] = compact_history(messages)
+66:        messages[:] = repair_message_chain(messages)
+67:        try:
+68:            # 调用大模型获取回复
+69:            response = with_retry(
+70:                lambda: call_llm(
+71:                    system, messages, state.max_tokens, state.current_model
+72:                ),
+73:                state,
+74:            )
+75:        except Exception as e:
+76:            # 如果报的错误是提示词过长的导致的错误
+77:            if is_prompt_too_long_error(e):
+78:                # 如果还没有尝试过被动压缩
+79:                if not state.has_attempted_reactive_compact:
+80:                    # 对消息列表进行反应式压缩，减少消息长度
+81:                    messages[:] = reactive_compact(messages)
+82:                    state.has_attempted_reactive_compact = True
+83:                    continue
+84:                # 如果已经尝试过了，还是报这个错
+85:                print(f"[不可恢复] 已经尝试过被动压缩，但还是太长")
+86:                messages.append(
+87:                    {"role": "assistant", "content": "[错误]上下文太长，无法继续"}
+88:                )
+89:                return
+90:            name = type(e).__name__
+91:            print(f"[不可恢复] {name} {str(e)[:100]}")
+92:            messages.append(
+93:                {"role": "assistant", "content": f"[错误]{name}:{str(e)[:100]}"}
+94:            )
+95:            return
+96:
+97:        # 获取助手返回的消息
+98:        choice = response.choices[0]  # type: ignore
+99:        # 判断回复是否是因为达到最大限度被 截断
+100:        if choice.finish_reason == "length":
+101:            # 如果尚未升级max_tokens
+102:            if not state.has_escalated:
+103:                state.max_tokens = ESCALATE_MAX_TOKENS
+104:                state.has_escalated = True
+105:                print(f"[max_tokens] {DEFAULT_MAX_TOKENS}升级到{ESCALATE_MAX_TOKENS}")
+106:                continue
+107:            # 把助手消息以字典的形式添加到消息列表中
+108:            messages.append(assistant_message_dict(choice.message))
+109:            # 如果本次回复需要调用工具的话
+110:            if choice.message.tool_calls:
+111:                # 虽然不能调用工具了，但为了保证工具消息合法性，还是需要给工具调用配齐调用结果
+112:                for tool_call in choice.message.tool_calls:
+113:                    messages.append(
+114:                        {
+115:                            "role": "tool",
+116:                            "tool_call_id": tool_call.id,
+117:                            "content": "[输出被截断，未能执行工具]",
+118:                        }
+119:                    )
+120:                # 跳出本次循环，重新开始
+121:                continue
+122:            # 如果还在允许 的最大恢复 次数范围内
+123:            if state.recovery_count < MAX_RECOVERY_RETRIES:
+124:                messages.append({"role": "user", "content": CONTINUATION_PROMPT})
+125:                state.recovery_count += 1
+126:                print(f"续写{ state.recovery_count}/{MAX_RECOVERY_RETRIES}")
+127:                continue
+128:            print("已经达到了恢复上限")
+129:            return
+130:
+131:        assistant = choice.message
+132:        # 消耗的token在choice.usage
+133:        # 将助手的回复以字典的形式添加到消息列表
+134:        messages.append(assistant_message_dict(assistant))
+135:        # 每一轮调用让计数器加1
+136:        rounds_since_todo += 1
+137:        # 如果助手没有工具调用，则终止循环
+138:        if not assistant.tool_calls:
+139:            # 提取记忆
+140:            extract_memories(pre_compress)
+141:            # 合并或者说整理记忆
+142:            consolidate_memories()
+143:            # 调用trigger_hooks函数，触发名为Stop的钩子，传入当前的消息列表
+144:            force = trigger_hooks("Stop", messages)
+145:            # 如果force有值说明活没干完，也就是hook返回了需要进一步处理的信息

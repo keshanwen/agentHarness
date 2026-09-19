@@ -60,8 +60,12 @@ MAX_RECOVERY_RETRIES = 3
 # 定义升级后的最大token数量
 ESCALATE_MAX_TOKENS = 64000
 # 从环境变量中获取备用的模型名称
-FALLBACK_MODEL_ID = os.environ["FALLBACK_MODEL_ID"]
+FALLBACK_MODEL_ID = "deepseek-v4-flash"
 # 设置基础延迟时间为500毫秒
 BASE_DELAY_MS = 500
 # 定义连续发生529多少次之后就切换到备用模型
 MAX_CONSECUTIVE_529 = 3
+# 定义续写的提示词
+CONTINUATION_PROMPT = """
+输出token上限已经达到，直接继续 - 不要道歉或复述，从思路中断处接上
+"""
