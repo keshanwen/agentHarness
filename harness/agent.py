@@ -1,11 +1,20 @@
 import json
-from config import DEFAULT_MAX_TOKENS, MODEL_ID
+from config import DEFAULT_MAX_TOKENS, MODEL_ID, CONTEXT_LIMIT
 from prompt import get_system_prompt
-from llm import call_llm
+from llm import call_llm, is_prompt_too_long_error
 from utils import assistant_message_dict
 from tools.executor import execute_tool
 from hooks import trigger_hooks
-from history import tool_result_budget, snip_compact, micro_compact
+from history import (
+    tool_result_budget,
+    snip_compact,
+    micro_compact,
+    estimate_size,
+    repair_message_chain,
+    compact_history,
+    reactive_compact,
+)
+
 
 # 定义变量,用于记录上次todo_write调用以来的轮数
 rounds_since_todo = 0
@@ -26,6 +35,10 @@ def agent_loop(messages: list):
         messages[:] = snip_compact(messages)
         # L2: micro_compact — 旧工具结果占位 仅保留最近3条tool的完整内容，旧的变成占位符
         messages[:] = micro_compact(messages)
+        # L4: compact_history — LLM 全量摘要
+        if estimate_size(messages) > CONTEXT_LIMIT:
+            messages[:] = compact_history(messages)
+        messages[:] = repair_message_chain(messages)
         if rounds_since_todo >= 3 and messages:
             messages.append(
                 {
@@ -35,10 +48,18 @@ def agent_loop(messages: list):
             )
             print(f"\x1b[33m请更新你的todo列表\x1b[0m")
             rounds_since_todo = 0
-        # 调用大模型获取回复
-        response = call_llm(system, messages, max_tokens, model)
+        try:
+            # 调用大模型获取回复
+            response = call_llm(system, messages, max_tokens, model)
+        except Exception as e:
+            # 如果报的错误是提示词过长的导致的错误
+            if is_prompt_too_long_error(e):
+                # 对消息列表进行反应式压缩，减少消息长度
+                messages[:] = reactive_compact(messages)
+                continue
+
         # 获取助手返回的消息
-        choice = response.choices[0]
+        choice = response.choices[0]  # type: ignore
         assistant = choice.message
         # 消耗的token在choice.usage
         # 将助手的回复以字典的形式添加到消息列表
@@ -62,6 +83,11 @@ def agent_loop(messages: list):
             name = tool_call.function.name
             # 获取解析工具参数
             args = json.loads(tool_call.function.arguments or "{}")
+            # 如果用户想调的工具是压缩工具的话
+            if name == "compact":
+                messages[:] = compact_history(messages)
+                # 跳出当前的for 循环进入下一轮的while循环
+                break
             # 触发PreToolUse这个钩子，判断是否允许工具执行
             blocked = trigger_hooks("PreToolUse", name, args)
             # 只要有一个钩子函数返回一个非None的值，后面的钩子就不走了，

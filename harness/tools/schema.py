@@ -92,4 +92,12 @@ TOOLS = [
         },
         ["name"],
     ),
+    _fn_tool(
+        "compact",
+        "摘要较早的对话以释放上下文的空间",
+        {
+            "focus": {"type": "string"},
+        },
+        [],
+    ),
 ]

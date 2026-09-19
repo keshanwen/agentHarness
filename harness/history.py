@@ -1,3 +1,5 @@
+import json
+import time
 from config import (
     MAX_BYTES,
     PERSIST_THRESHOLD,
@@ -5,6 +7,10 @@ from config import (
     TEXT_ENCODING,
     MAX_MESSAGES_LENGTH,
     KEEP_RECENT,
+    TRANSCRIPTS_DIR,
+    client,
+    MODEL_ID,
+    DEFAULT_MAX_TOKENS,
 )
 
 
@@ -156,3 +162,56 @@ def micro_compact(messages: list):
         if len(content) > 120:
             msg["content"] = "[较早的工具结果已经压缩，需要时重新运行]"
     return messages
+
+
+
+# 计算消息列表字符串长度
+def estimate_size(messages: list):
+    return len(str(messages))
+
+
+def write_transcript(messages: list):
+    # 创建转录目录
+    TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+    # 拼接生成的转录文件的路径
+    path = TRANSCRIPTS_DIR / f"transcript_{int(time.time())}.jsonl"
+    with path.open("w", encoding=TEXT_ENCODING) as f:
+        for msg in messages:
+            # 将每条消息转为json字符串并写入文件，每条一行
+            f.write(json.dumps(msg, default=str, ensure_ascii=False) + "\n")
+    return path
+
+
+def summarize_history(messages: list):
+    # 将消息列表转换为json字符串，并裁剪至8万个字符
+    conversation = json.dumps(messages, default=str, ensure_ascii=False)[:80000]
+    prompt = (
+        "总结以下Agent对话，以便继续工作\n"
+        "保留1. 当前目标 2.关键发现、决策 3.读和改过的文件 4.剩余工作 5.用户约束 \n简洁但具体。\n\n"
+        + conversation
+    )
+    response = client.chat.completions.create(
+        model=MODEL_ID,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=DEFAULT_MAX_TOKENS,
+    )
+    return (response.choices[0].message.content or "").strip() or "(空摘要)"
+
+
+def compact_history(messages: list):
+    transcript_path = write_transcript(messages)
+    print(f"[转录已经保存]:{transcript_path}")
+    # 对历史消息进行摘要压缩
+    summary = summarize_history(messages)
+    # 返回仅仅包含摘要的文本消息列表(角色为用户)
+    return [{"role": "user", "content": f"[已压缩]\n\n{summary}"}]
+
+
+def reactive_compact(messages: list):
+    write_transcript(messages)
+    summary = summarize_history(messages)
+    # 生成一个压缩后的消息链(包括用户摘要加上最近的5条消息，并进行修正处理)
+    # 保留消息列表中最后的5条消息
+    return repair_message_chain(
+        [{"role": "user", "content": f"[响应式压缩]\n\n{summary}"}, *messages[-5:]]
+    )

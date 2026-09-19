@@ -32,5 +32,12 @@ PERSIST_THRESHOLD = 1000
 TOOL_RESULTS_DIR = WORKDIR / ".task_outputs" / "tool_results"
 # 最大的消息的长度
 MAX_MESSAGES_LENGTH = 0
+
+# 最大的消息的长度
+MAX_MESSAGES_LENGTH = 50
 # 设置保留的最近3条工具消息
 KEEP_RECENT = 3
+# 设置上下文限制大小
+CONTEXT_LIMIT = 100000
+# 设置转录目录为工作目录下面的.transcripts目录
+TRANSCRIPTS_DIR = WORKDIR / ".transcripts"
